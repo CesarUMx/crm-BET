@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+/* Tokens del sistema (post-login). Login/CambiarContraseña usan colores fijos, no estos tokens. */
+:root {
+  color-scheme: dark;
+  --bg: #1a1a1a;
+  --surface: #1a1a1a;
+  --border: #004a87;
+  --border-soft: #2a4a63;
+  --border-faint: rgba(255, 255, 255, 0.1);
+  --text-primary: #f3f4f6;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --hover-surface: rgba(255, 255, 255, 0.05);
+  --hover-surface-strong: rgba(255, 255, 255, 0.1);
+  --chip-bg: rgba(255, 255, 255, 0.05);
+  --chip-border: rgba(255, 255, 255, 0.15);
+}
+
+html.theme-light {
+  color-scheme: light;
+  --bg: #1a1a1a;
+  --surface: #cdd1d6;
+  --border: #004a87;
+  --border-soft: #004a87;
+  --border-faint: rgba(0, 0, 0, 0.08);
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --hover-surface: rgba(0, 0, 0, 0.04);
+  --hover-surface-strong: rgba(0, 0, 0, 0.06);
+  --chip-bg: rgba(0, 0, 0, 0.04);
+  --chip-border: rgba(0, 0, 0, 0.12);
+}
+

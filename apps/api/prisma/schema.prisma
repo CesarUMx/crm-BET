@@ -1,0 +1,288 @@
+// Este archivo es generado automáticamente por Prisma.
+// No editar la BD a mano: usar `pnpm db:migrate` para cambios.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Usuario administrador / staff / alumno (login) ──────────────────────────
+model User {
+  id                  String         @id @default(uuid())
+  email               String         @unique
+  password            String?  // hash argon2id; null si el usuario solo usa Google OAuth
+  name                String
+  role                Role           @default(COORDINADOR)
+  isActive            Boolean        @default(true)
+  mustChangePassword  Boolean        @default(true)  // fuerza cambio en primer login / tras reset (solo aplica si tiene password)
+  googleId            String?        @unique          // Google sub; se persiste en primer login con Google
+  tokenVersion        Int            @default(0)     // se incrementa en logout global / reset
+  failedLoginAttempts Int            @default(0)     // contador para bloqueo por fuerza bruta
+  lockedUntil         DateTime?                      // si > ahora la cuenta está bloqueada
+  refreshTokens       RefreshToken[]
+  // Vínculo opcional: un User con rol ALUMNO se liga a su registro Student existente
+  studentId           String?        @unique
+  student             Student?       @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  // Grupos que imparte (solo aplica a rol DOCENTE)
+  groupsTaught        Group[]        @relation("GroupTeacher")
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+}
+
+// ─── Refresh tokens (rotación + revocación real) ─────────────────────────────
+model RefreshToken {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash    String    @unique   // se guarda el HASH, nunca el token en claro
+  expiresAt    DateTime
+  revokedAt    DateTime?           // null = activo
+  createdAt    DateTime  @default(now())
+  createdByIp  String?
+
+  @@index([userId])
+}
+
+enum Role {
+  SUPER_ADMIN  // hace todo + gestiona usuarios
+  COORDINADOR  // toda la operación académica, sin gestión de usuarios
+  DOCENTE      // administra material/sesiones de SUS grupos asignados (login solo Google)
+  ALUMNO       // solo consulta material/sesiones de sus grupos inscritos (login Google o password)
+}
+
+// ─── Alumno ───────────────────────────────────────────────────────────────────
+model Student {
+  id          String        @id @default(uuid())
+  matricula   String        @unique          // autogenerada (ver §7 del plan)
+  firstName   String
+  lastName    String
+  email       String        @unique
+  phone       String
+  birthDate   DateTime                       // fuente de verdad; la edad se calcula al leer
+  status      StudentStatus @default(ACTIVE)
+  enrollments Enrollment[]
+  user        User?                          // cuenta de acceso (rol ALUMNO), si se le dio de alta
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([lastName, firstName])
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+// ─── Curso / Diplomado ────────────────────────────────────────────────────────
+model Course {
+  id           String       @id @default(uuid())
+  code         String       @unique           // clave, ej. DIP-2026-01
+  seq          Int          @unique @default(autoincrement()) // nº para folio (001, 002…) — campo INTERNO
+  name         String
+  description  String?
+  type         CourseType   @default(CURSO)
+  modality     Modality     @default(PRESENCIAL)
+  hours        Int?                            // nº horas (principalmente DIPLOMADO)
+  duration     String?                         // duración legible, ej. "6 meses"
+  requirements String?                         // requisitos de ingreso (texto libre)
+  status       CourseStatus @default(OPEN)
+  groups       Group[]
+  enrollments  Enrollment[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+enum CourseType {
+  CURSO
+  DIPLOMADO
+}
+
+enum Modality {
+  PRESENCIAL
+  EN_LINEA
+  HIBRIDO
+}
+
+enum CourseStatus {
+  OPEN      // abierto a inscripciones
+  CLOSED
+  ARCHIVED
+}
+
+// ─── Grupo (dentro de un curso) ───────────────────────────────────────────────
+model Group {
+  id          String         @id @default(uuid())
+  name        String                           // ej. "Grupo A", "Sabatino"
+  capacity    Int?                             // null = cupo ilimitado
+  schedule    String?                          // horario (texto libre)
+  startDate   DateTime?                        // fecha de apertura (opcional)
+  endDate     DateTime?                        // fecha de cierre; pasada = grupo "vencido" (no se persiste un status, se calcula al leer)
+  onlineMeetingUrl String?                     // liga de videollamada (Zoom/Meet/Teams), para cursos EN_LINEA o HIBRIDO
+  courseId    String
+  course      Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teacherId   String?                          // Docente asignado (rol DOCENTE); opcional
+  teacher     User?          @relation("GroupTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
+  enrollments Enrollment[]
+  materials   GroupMaterial[]
+  materialSections MaterialSection[]
+  sessions    ClassSession[]
+  deliverables Deliverable[]
+  evaluations Evaluation[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([courseId, name])                   // no repetir nombre de grupo en el mismo curso
+}
+
+// ─── Material de apoyo (lista abierta, sin fecha, por grupo) ─────────────────
+// Se puede subir antes, durante o después de que el grupo imparta sus clases.
+// ─── Sección de material de apoyo (agrupador temático, dinámico, por grupo) ──
+// Ej. "Ecuaciones diferenciales" agrupa un video + un PDF. Opcional: material sin
+// sección queda "suelto". Borrar la sección NO borra el material (queda sin sección).
+model MaterialSection {
+  id        String          @id @default(uuid())
+  groupId   String
+  group     Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  title     String
+  order     Int             @default(0)
+  materials GroupMaterial[]
+  createdAt DateTime        @default(now())
+
+  @@index([groupId])
+}
+
+model GroupMaterial {
+  id          String   @id @default(uuid())
+  groupId     String
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sectionId   String?                          // sección opcional (agrupador temático)
+  section     MaterialSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  title       String
+  type        MaterialType
+  // DOCUMENT: archivo subido al servidor (video, imagen, ppt, doc, pdf, excel — máx. 500 MB)
+  // LINK: solo enlace externo (ej. video muy pesado alojado en Drive/YouTube)
+  fileUrl     String?                          // ruta del archivo si type = DOCUMENT
+  fileName    String?                          // nombre original del archivo
+  fileSize    Int?                             // bytes, para mostrar tamaño en UI
+  externalUrl String?                          // URL si type = LINK
+  uploadedBy  String                           // userId (Docente o Admin) que lo subió
+  createdAt   DateTime @default(now())
+
+  @@index([groupId])
+  @@index([sectionId])
+}
+
+enum MaterialType {
+  DOCUMENT
+  LINK
+}
+
+// ─── Sesión de clase (con fecha, grabación por enlace) ───────────────────────
+// Se crean conforme avanza el curso, una por cada clase impartida.
+model ClassSession {
+  id           String   @id @default(uuid())
+  groupId      String
+  group        Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  date         DateTime
+  topic        String?                         // tema visto en esa clase (opcional)
+  recordingUrl String?                         // enlace externo a la grabación (Drive/YouTube/Zoom)
+  notes        String?
+  createdBy    String                          // userId (Docente o Admin) que la creó
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([groupId])
+  @@index([date])
+}
+
+// ─── Entregable (tarea/proyecto con fecha límite opcional; sin fecha = sin límite) ─
+model Deliverable {
+  id          String    @id @default(uuid())
+  groupId     String
+  group       Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  dueDate     DateTime?                        // null = sin fecha límite de entrega
+  createdBy   String                           // userId (Docente o Admin) que lo creó
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([groupId])
+}
+
+// ─── Evaluación (liga externa a Google Forms / Microsoft Forms) ──────────────
+model Evaluation {
+  id          String   @id @default(uuid())
+  groupId     String
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  externalUrl String                           // liga de Google Forms o Microsoft Forms
+  createdBy   String                           // userId (Docente o Admin) que la creó
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([groupId])
+}
+
+// ─── Inscripción (Alumno ↔ Curso, opcionalmente en un Grupo) ─────────────────
+model Enrollment {
+  id         String           @id @default(uuid())
+  folio      String           @unique          // folio generado: YYMM-CCC-NNNN (con guiones)
+  studentId  String
+  courseId   String
+  groupId    String?
+  status     EnrollmentStatus @default(ENROLLED)
+  enrolledAt DateTime         @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  group   Group?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  // La regla "no dos ENROLLED del mismo alumno-curso" se valida en el service.
+  // RECOMENDADO: aplicar este índice parcial en la primera migración para evitar race conditions:
+  //   CREATE UNIQUE INDEX uniq_active_enrollment ON "Enrollment"("studentId","courseId")
+  //   WHERE status = 'ENROLLED';
+  @@index([studentId, courseId])
+  @@index([courseId])
+  @@index([groupId])
+}
+
+enum EnrollmentStatus {
+  ENROLLED
+  WITHDRAWN   // baja
+  COMPLETED
+}
+
+// ─── Contador de matrícula (consecutivo por año) ──────────────────────────────
+model MatriculaCounter {
+  year   Int @id
+  lastNo Int @default(0)
+}
+
+// ─── Contador de folio (consecutivo por YYMM + curso) ────────────────────────
+// key = "YYMM-CCC", ej. "2608-001"
+model FolioCounter {
+  key    String @id
+  lastNo Int    @default(0)
+}
+
+// ─── Bitácora de auditoría ────────────────────────────────────────────────────
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String?             // userId que ejecutó la acción (null = sistema)
+  action    String              // ej. LOGIN_SUCCESS, STUDENT_CREATE, USER_ROLE_CHANGE
+  entity    String?             // ej. "Student", "Course", "User"
+  entityId  String?
+  ip        String?
+  meta      Json?               // detalle adicional (campos cambiados, motivo, etc.)
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
