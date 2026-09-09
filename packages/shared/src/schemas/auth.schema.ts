@@ -9,7 +9,7 @@ export const changePasswordSchema = z.object({
   current: z.string().min(1, 'La contraseña actual es requerida'),
   next: z
     .string()
-    .min(12, 'La nueva contraseña debe tener al menos 12 caracteres'),
+    .min(10, 'La nueva contraseña debe tener al menos 10 caracteres'),
 })
 
 export type LoginInput = z.infer<typeof loginSchema>

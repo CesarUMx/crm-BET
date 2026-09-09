@@ -38,13 +38,16 @@ export function Layout({ children }: LayoutProps) {
       <div className="relative z-10 flex flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] shadow-2xl">
         {/* Barra superior: azul sólido institucional, siempre igual en ambos temas */}
         <header className="flex shrink-0 items-center justify-between bg-[#004A87] px-6 py-3">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E9511D] px-3 py-1.5 text-xs font-bold text-white shadow-sm shadow-[#E9511D]/30">
-            Control Alumnos
-          </span>
+          <div className="flex items-center gap-3">
+            <img src="/logo-mark-192.png" alt="UMx BET" className="h-8 w-8 rounded-md bg-white p-1" />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E9511D] px-3 py-1.5 text-xs font-bold text-white shadow-sm shadow-[#E9511D]/30">
+              Control Alumnos
+            </span>
+          </div>
 
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-medium text-slate-300">
-              Universidad Mondragón UMx
+              Universidad Mondragón México
             </span>
             <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-slate-100">
               {user?.name}

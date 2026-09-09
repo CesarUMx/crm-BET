@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus, Pencil, UserX, UserCheck, Search, FileSpreadsheet } from 'lucide-react'
+import { Plus, Pencil, UserX, UserCheck, Search, FileSpreadsheet, KeyRound } from 'lucide-react'
 import { Link } from 'react-router'
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table'
 import { Button } from '../../components/ui/Button'
@@ -16,14 +16,16 @@ export function StudentsPage() {
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [onlyNoAccess, setOnlyNoAccess] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [editStudent, setEditStudent] = useState<StudentRow | null>(null)
   const [deactivateTarget, setDeactivateTarget] = useState<StudentRow | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const { data, isLoading } = useQuery({
-    queryKey: ['students', search, page],
-    queryFn: () => studentsApi.list({ search, page, pageSize: 20 }).then((r) => r.data),
+    queryKey: ['students', search, page, onlyNoAccess],
+    queryFn: () => studentsApi.list({ search, page, pageSize: 20, access: onlyNoAccess ? 'none' : undefined }).then((r) => r.data),
   })
 
   const deactivateMut = useMutation({
@@ -51,7 +53,57 @@ export function StudentsPage() {
     },
   })
 
+  const bulkActivateMut = useMutation({
+    mutationFn: (ids: string[]) => studentsApi.activateAccessBulk(ids),
+    onSuccess: (res) => {
+      const { succeeded, failed } = res.data.data
+      qc.invalidateQueries({ queryKey: ['students'] })
+      setSelected(new Set())
+      if (failed === 0) toast.success(`Acceso activado a ${succeeded} alumno(s)`)
+      else toast.warning(`${succeeded} activado(s), ${failed} no se pudieron activar (ya tenían acceso o están dados de baja)`)
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Error al activar acceso masivo'
+      toast.error(msg)
+    },
+  })
+
+  const toggleSelected = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const rows = data?.data ?? []
+  const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id))
+
   const columns = [
+    ...(onlyNoAccess
+      ? [
+          col.display({
+            id: 'select',
+            header: () => (
+              <input
+                type="checkbox"
+                className="size-4 accent-[#E9511D]"
+                checked={allSelected}
+                onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())}
+              />
+            ),
+            cell: ({ row }: { row: { original: StudentRow } }) => (
+              <input
+                type="checkbox"
+                className="size-4 accent-[#E9511D]"
+                checked={selected.has(row.original.id)}
+                onChange={() => toggleSelected(row.original.id)}
+              />
+            ),
+          }),
+        ]
+      : []),
     col.accessor('matricula', {
       header: 'Matrícula',
       cell: (info) => <span className="font-mono text-xs font-semibold text-[var(--text-secondary)]">{info.getValue()}</span>,
@@ -76,6 +128,14 @@ export function StudentsPage() {
       cell: (info) => (
         <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${info.getValue() === 'ACTIVE' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
           {info.getValue() === 'ACTIVE' ? 'Activo' : 'Baja'}
+        </span>
+      ),
+    }),
+    col.accessor('hasAccess', {
+      header: 'Acceso',
+      cell: (info) => (
+        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${info.getValue() ? 'bg-[#006EBF] text-white' : 'bg-gray-500 text-white'}`}>
+          {info.getValue() ? 'Con acceso' : 'Sin acceso'}
         </span>
       ),
     }),
@@ -105,7 +165,7 @@ export function StudentsPage() {
   ]
 
   const table = useReactTable({
-    data: data?.data ?? [],
+    data: rows,
     columns,
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
@@ -141,6 +201,26 @@ export function StudentsPage() {
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
           />
         </div>
+        <select
+          className="rounded-full border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[#FF6E00]"
+          value={onlyNoAccess ? 'none' : ''}
+          onChange={(e) => { setOnlyNoAccess(e.target.value === 'none'); setPage(1); setSelected(new Set()) }}
+        >
+          <option value="">Acceso: todos</option>
+          <option value="none">Sin acceso</option>
+        </select>
+
+        {selected.size > 0 && (
+          <Button
+            variant="brand"
+            size="sm"
+            loading={bulkActivateMut.isPending}
+            onClick={() => bulkActivateMut.mutate(Array.from(selected))}
+          >
+            <KeyRound className="size-4" />
+            Activar acceso ({selected.size})
+          </Button>
+        )}
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)]">

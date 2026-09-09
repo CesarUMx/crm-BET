@@ -18,14 +18,18 @@ export const userService = {
   async list(rawQuery: unknown) {
     const { search, page, pageSize } = listQuerySchema.parse(rawQuery)
 
-    const where = search
-      ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' as const } },
-            { email: { contains: search, mode: 'insensitive' as const } },
-          ],
-        }
-      : {}
+    // ALUMNO se gestiona desde el módulo de Alumnos (activar acceso), no aquí
+    const where = {
+      role: { not: 'ALUMNO' as const },
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' as const } },
+              { email: { contains: search, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+    }
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({

@@ -5,12 +5,13 @@ import { AppError } from '../../middlewares/error.middleware'
 
 export const studentController = {
   list: async (req: Request, res: Response) => {
-    const { search, page, pageSize, status } = req.query
+    const { search, page, pageSize, status, access } = req.query
     const result = await studentService.list({
       search: search as string,
       page: page ? Number(page) : 1,
       pageSize: pageSize ? Number(pageSize) : 20,
       status: status as string,
+      access: access as string,
     })
     const { students, total, page: p, pageSize: ps, totalPages } = result
     res.json({ data: students, meta: { page: p, pageSize: ps, total, totalPages } })
@@ -43,6 +44,11 @@ export const studentController = {
 
   activateAccess: async (req: Request, res: Response) => {
     const result = await studentService.activateAccess(req.params['id'] as string, req.user!.id)
+    res.json({ data: result })
+  },
+
+  activateAccessBulk: async (req: Request, res: Response) => {
+    const result = await studentService.activateAccessBulk(req.body.studentIds, req.user!.id)
     res.json({ data: result })
   },
 

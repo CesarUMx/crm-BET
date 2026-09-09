@@ -2,7 +2,7 @@ import { Router } from 'express'
 import multer from 'multer'
 import { requireAuth, requireStaff } from '../../middlewares/auth.middleware'
 import { validate } from '../../middlewares/validate.middleware'
-import { createStudentSchema, updateStudentSchema } from 'shared'
+import { createStudentSchema, updateStudentSchema, activateAccessBulkSchema } from 'shared'
 import { studentController } from './student.controller'
 
 const upload = multer({
@@ -33,3 +33,4 @@ studentsRouter.put('/:id', validate(updateStudentSchema), studentController.upda
 studentsRouter.delete('/:id', studentController.deactivate)
 studentsRouter.post('/:id/activate', studentController.activate)
 studentsRouter.post('/:id/activate-access', studentController.activateAccess)
+studentsRouter.post('/activate-access-bulk', validate(activateAccessBulkSchema), studentController.activateAccessBulk)

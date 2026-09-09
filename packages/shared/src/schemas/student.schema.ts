@@ -11,5 +11,10 @@ export const createStudentSchema = z.object({
 
 export const updateStudentSchema = createStudentSchema.partial()
 
+export const activateAccessBulkSchema = z.object({
+  studentIds: z.array(z.string().uuid()).min(1, 'Selecciona al menos un alumno'),
+})
+
 export type CreateStudentInput = z.infer<typeof createStudentSchema>
 export type UpdateStudentInput = z.infer<typeof updateStudentSchema>
+export type ActivateAccessBulkInput = z.infer<typeof activateAccessBulkSchema>

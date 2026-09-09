@@ -193,7 +193,12 @@ export function UsersPage() {
         open={modalOpen}
         onOpenChange={(v) => { setModalOpen(v); if (!v) setEditUser(null) }}
         user={editUser}
-        onSuccess={() => { qc.invalidateQueries({ queryKey: ['users'] }); setModalOpen(false) }}
+        onSuccess={() => {
+          qc.invalidateQueries({ queryKey: ['users'] })
+          // El selector de docentes en "Nuevo grupo" cachea esta key aparte
+          qc.invalidateQueries({ queryKey: ['teachers'] })
+          setModalOpen(false)
+        }}
       />
 
       <ConfirmDialog

@@ -18,17 +18,21 @@ function calcularEdad(birthDate: Date): number {
 function formatearAlumno(s: {
   id: string; matricula: string; firstName: string; lastName: string
   email: string; phone: string; birthDate: Date; status: string
-  createdAt: Date; updatedAt: Date
+  createdAt: Date; updatedAt: Date; user?: { isActive: boolean } | null
 }) {
-  return { ...s, age: calcularEdad(s.birthDate) }
+  return { ...s, age: calcularEdad(s.birthDate), hasAccess: !!s.user }
 }
 
 export const studentService = {
-  async list(params: { search?: string; page?: number; pageSize?: number; status?: string }) {
-    const { search, page = 1, pageSize = 20, status } = params
+  async list(params: { search?: string; page?: number; pageSize?: number; status?: string; access?: string }) {
+    const { search, page = 1, pageSize = 20, status, access } = params
 
     const where = {
       ...(status && { status: status as 'ACTIVE' | 'INACTIVE' }),
+      // 'none' = sin cuenta de acceso (candidatos a activación masiva); 'active'/'inactive' = según User.isActive
+      ...(access === 'none' && { user: null }),
+      ...(access === 'active' && { user: { isActive: true } }),
+      ...(access === 'inactive' && { user: { isActive: false } }),
       ...(search && {
         OR: [
           { firstName: { contains: search, mode: 'insensitive' as const } },
@@ -45,6 +49,7 @@ export const studentService = {
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+        include: { user: { select: { isActive: true } } },
       }),
       prisma.student.count({ where }),
     ])
@@ -152,6 +157,7 @@ export const studentService = {
   async activateAccess(id: string, actorId: string) {
     const student = await prisma.student.findUnique({ where: { id }, include: { user: true } })
     if (!student) throw new AppError(404, 'NOT_FOUND', 'Alumno no encontrado')
+    if (student.status === 'INACTIVE') throw new AppError(400, 'INACTIVE_STUDENT', 'No se puede activar acceso a un alumno dado de baja')
     if (student.user) throw new AppError(409, 'ALREADY_ACTIVE', 'Este alumno ya tiene una cuenta de acceso')
 
     const existingEmail = await prisma.user.findUnique({ where: { email: student.email } })
@@ -174,5 +180,23 @@ export const studentService = {
     await logAudit({ actorId, action: 'STUDENT_ACCESS_ACTIVATE', entity: 'User', entityId: user.id, meta: { studentId: student.id } })
     await sendTempPasswordEmail(student.email, `${student.firstName} ${student.lastName}`, tempPassword)
     return { tempPassword }
+  },
+
+  // Activa el acceso de varios alumnos a la vez; sigue de largo si alguno falla y reporta el detalle
+  async activateAccessBulk(ids: string[], actorId: string) {
+    const results: { id: string; success: boolean; message?: string }[] = []
+    for (const id of ids) {
+      try {
+        await this.activateAccess(id, actorId)
+        results.push({ id, success: true })
+      } catch (err) {
+        results.push({ id, success: false, message: err instanceof AppError ? err.message : 'Error inesperado' })
+      }
+    }
+    return {
+      succeeded: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
+      results,
+    }
   },
 }

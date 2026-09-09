@@ -33,7 +33,21 @@ app.use(
 
 app.use(express.json())
 app.use(cookieParser())
-app.use(pinoHttp({ logger }))
+app.use(
+  pinoHttp({
+    logger,
+    // No registrar tokens/cookies ni el resto de headers: solo lo útil para depurar
+    redact: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'],
+    serializers: {
+      req(req) {
+        return { method: req.method, url: req.url }
+      },
+      res(res) {
+        return { statusCode: res.statusCode }
+      },
+    },
+  }),
+)
 
 app.use('/api/v1', router)
 

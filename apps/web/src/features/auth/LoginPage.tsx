@@ -82,11 +82,11 @@ export function LoginPage() {
       <div className="relative w-full max-w-sm">
         {/* Logo + título */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 shadow-lg">
-            <span className="text-2xl font-black text-white">UMx</span>
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-white p-2 shadow-lg">
+            <img src="/logo-mark-512.png" alt="UMx BET" className="h-full w-full object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-white">Control de Alumnos</h1>
-          <p className="mt-1 text-sm text-white/70">Universidad Mondragón UMx</p>
+          <p className="mt-1 text-sm text-white/70">Universidad Mondragón México</p>
         </div>
 
         {/* Tarjeta única con ambas opciones de acceso */}
@@ -142,7 +142,7 @@ export function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-white/40">
-          © 2026 Universidad Mondragón UMx
+          © 2026 Universidad Mondragón México
         </p>
       </div>
     </div>

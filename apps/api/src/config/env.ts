@@ -1,6 +1,14 @@
 import 'dotenv/config'
 import { z } from 'zod'
 
+// z.coerce.boolean() usa Boolean(v): cualquier string no vacío (incluido "false") da true.
+// Este preprocesador sí distingue el texto "false"/"0" de valores verdaderos.
+const booleanFromEnv = z.preprocess((v) => {
+  if (typeof v === 'boolean') return v
+  if (typeof v === 'string') return !['false', '0', ''].includes(v.toLowerCase())
+  return v
+}, z.boolean())
+
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET debe tener al menos 32 caracteres'),
@@ -16,7 +24,7 @@ const envSchema = z.object({
   // configura, el envío se omite silenciosamente (se loguea un warning) sin romper el flujo.
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().positive().default(587),
-  SMTP_SECURE: z.coerce.boolean().default(false),
+  SMTP_SECURE: booleanFromEnv.default(false),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().optional(),

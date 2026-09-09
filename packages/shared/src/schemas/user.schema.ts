@@ -5,7 +5,7 @@ const roleEnum = z.enum(['SUPER_ADMIN', 'COORDINADOR', 'DOCENTE'])
 
 const passwordSchema = z
   .string()
-  .min(12, 'La contraseña debe tener al menos 12 caracteres')
+  .min(10, 'La contraseña debe tener al menos 10 caracteres')
 
 export const createUserSchema = z
   .object({

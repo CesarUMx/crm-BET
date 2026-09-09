@@ -11,11 +11,12 @@ export interface StudentRow {
   birthDate: string
   age: number
   status: 'ACTIVE' | 'INACTIVE'
+  hasAccess: boolean
   createdAt: string
 }
 
 export const studentsApi = {
-  list: (params?: { search?: string; page?: number; pageSize?: number; status?: string }) =>
+  list: (params?: { search?: string; page?: number; pageSize?: number; status?: string; access?: string }) =>
     api.get<{ data: StudentRow[]; meta: PaginationMeta }>('/students', { params }),
 
   getById: (id: string) =>
@@ -36,6 +37,9 @@ export const studentsApi = {
   activateAccess: (id: string) =>
     api.post<{ data: { tempPassword: string } }>(`/students/${id}/activate-access`),
 
+  activateAccessBulk: (studentIds: string[]) =>
+    api.post<{ data: BulkActivateResult }>('/students/activate-access-bulk', { studentIds }),
+
   downloadTemplate: () =>
     api.get('/students/import/template', { responseType: 'blob' }),
 
@@ -49,6 +53,13 @@ export const studentsApi = {
     })
   },
 }
+
+export interface BulkActivateResult {
+  succeeded: number
+  failed: number
+  results: { id: string; success: boolean; message?: string }[]
+}
+
 
 export interface ImportResult {
   studentsCreated: number
