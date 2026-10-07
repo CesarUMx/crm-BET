@@ -20,6 +20,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   GOOGLE_CLIENT_ID: z.string().optional(),
+  // API key para el endpoint público de consulta de alumnos (integraciones externas)
+  PUBLIC_API_KEY: z.string().min(16, 'PUBLIC_API_KEY debe tener al menos 16 caracteres'),
   // SMTP para correos transaccionales (contraseña temporal de Alumno, etc.). Si no se
   // configura, el envío se omite silenciosamente (se loguea un warning) sin romper el flujo.
   SMTP_HOST: z.string().optional(),

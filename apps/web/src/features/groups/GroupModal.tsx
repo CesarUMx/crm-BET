@@ -10,9 +10,9 @@ import { Modal } from '../../components/ui/Modal'
 import { groupsApi, type GroupRow } from './api'
 
 // Convierte el texto del campo Cupo a número; solo dígitos, vacío = ilimitado
-function parseCapacity(v: string | null | undefined): number | undefined {
-  if (v == null) return undefined
-  const digits = v.replace(/\D/g, '')
+function parseCapacity(v: string | number | null | undefined): number | undefined {
+  if (v == null || v === '') return undefined
+  const digits = String(v).replace(/\D/g, '')
   return digits === '' ? undefined : Number(digits)
 }
 

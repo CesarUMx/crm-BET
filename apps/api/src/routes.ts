@@ -1,8 +1,8 @@
 import { Router } from 'express'
 import { authRouter } from './modules/auth/auth.routes'
-import { usersRouter } from './modules/users/user.routes'
+import { usersRouter, docentesRouter } from './modules/users/user.routes'
 import { auditRouter } from './modules/audit/audit.routes'
-import { studentsRouter } from './modules/students/student.routes'
+import { studentsRouter, studentsPublicRouter } from './modules/students/student.routes'
 import { coursesRouter } from './modules/courses/course.routes'
 import { groupsRouter, courseGroupsRouter, myGroupsRouter, groupEnrollmentsRouter } from './modules/groups/group.routes'
 import { enrollmentsRouter } from './modules/enrollments/enrollment.routes'
@@ -20,7 +20,10 @@ router.get('/health', (_req, res) => {
 
 router.use('/auth', authRouter)
 router.use('/users', usersRouter)
+router.use('/docentes', docentesRouter)
 router.use('/audit-logs', auditRouter)
+// Pública (API key), montada antes de /students (que exige sesión de staff)
+router.use('/public/students', studentsPublicRouter)
 router.use('/students', studentsRouter)
 router.use('/courses', coursesRouter)
 router.use('/courses/:courseId/groups', courseGroupsRouter)

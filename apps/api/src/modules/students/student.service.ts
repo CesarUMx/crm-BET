@@ -63,6 +63,33 @@ export const studentService = {
     }
   },
 
+  // Consulta pública por matrícula (para integraciones externas vía API key)
+  async getPublicByMatricula(matricula: string) {
+    const student = await prisma.student.findUnique({
+      where: { matricula },
+      include: {
+        enrollments: {
+          where: { status: 'ENROLLED' },
+          orderBy: { enrolledAt: 'desc' },
+          take: 1,
+          include: { course: { select: { name: true, type: true } } },
+        },
+      },
+    })
+    if (!student) throw new AppError(404, 'NOT_FOUND', 'Alumno no encontrado')
+
+    const activeEnrollment = student.enrollments[0]
+
+    return {
+      matricula: student.matricula,
+      nombre: `${student.firstName} ${student.lastName}`,
+      correo: student.email,
+      curso: activeEnrollment?.course.name ?? null,
+      tipo: activeEnrollment?.course.type ?? null,
+      activo: student.status === 'ACTIVE',
+    }
+  },
+
   async getById(id: string) {
     const student = await prisma.student.findUnique({
       where: { id },

@@ -4,6 +4,11 @@ import { studentImportService } from './student-import.service'
 import { AppError } from '../../middlewares/error.middleware'
 
 export const studentController = {
+  getPublicByMatricula: async (req: Request, res: Response) => {
+    const data = await studentService.getPublicByMatricula(req.params['matricula'] as string)
+    res.json({ ok: true, data })
+  },
+
   list: async (req: Request, res: Response) => {
     const { search, page, pageSize, status, access } = req.query
     const result = await studentService.list({

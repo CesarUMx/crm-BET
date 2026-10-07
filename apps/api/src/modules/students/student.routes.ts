@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import multer from 'multer'
+import rateLimit from 'express-rate-limit'
 import { requireAuth, requireStaff } from '../../middlewares/auth.middleware'
+import { requireApiKey } from '../../middlewares/apiKey.middleware'
 import { validate } from '../../middlewares/validate.middleware'
 import { createStudentSchema, updateStudentSchema, activateAccessBulkSchema } from 'shared'
 import { studentController } from './student.controller'
@@ -17,6 +19,18 @@ const upload = multer({
     cb(null, true)
   },
 })
+
+// Endpoint público (API key), consumido por integraciones externas: GET /api/v1/public/students/:matricula
+const publicLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { code: 'RATE_LIMIT', message: 'Demasiadas solicitudes. Intente más tarde.' } },
+})
+
+export const studentsPublicRouter = Router()
+studentsPublicRouter.get('/:matricula', publicLimiter, requireApiKey, studentController.getPublicByMatricula)
 
 export const studentsRouter = Router()
 

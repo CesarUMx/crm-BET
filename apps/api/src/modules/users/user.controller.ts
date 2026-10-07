@@ -26,4 +26,19 @@ export const userController = {
     await userService.deactivate(req.params['id'] as string, req.user!.id, req.ip)
     res.status(204).send()
   },
+
+  listDocentes: async (req: Request, res: Response) => {
+    const result = await userService.listDocentes(req.query)
+    res.json(result)
+  },
+
+  createDocente: async (req: Request, res: Response) => {
+    const user = await userService.createDocente(req.body, req.user!.id, req.ip)
+    res.status(201).json({ data: user })
+  },
+
+  deactivateDocente: async (req: Request, res: Response) => {
+    await userService.deactivateDocente(req.params['id'] as string, req.user!.id, req.ip)
+    res.status(204).send()
+  },
 }

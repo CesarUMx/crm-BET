@@ -10,6 +10,7 @@ import { StudentsPage } from '../features/students/StudentsPage'
 import { StudentDetailPage } from '../features/students/StudentDetailPage'
 import { CoursesPage } from '../features/courses/CoursesPage'
 import { CourseDetailPage } from '../features/courses/CourseDetailPage'
+import { DocentesPage } from '../features/docentes/DocentesPage'
 import { PortalPage } from '../features/portal/PortalPage'
 
 // Roles con acceso al panel administrativo (Alumnos/Cursos/Grupos/Inscripciones/Usuarios)
@@ -56,6 +57,8 @@ export function AppRoutes() {
       <Route path="/alumnos" element={<ProtectedRoute roles={STAFF_ROLES}><StudentsPage /></ProtectedRoute>} />
       <Route path="/alumnos/:id" element={<ProtectedRoute roles={STAFF_ROLES}><StudentDetailPage /></ProtectedRoute>} />
       <Route path="/usuarios" element={<ProtectedRoute roles={['SUPER_ADMIN']}><UsersPage /></ProtectedRoute>} />
+      {/* Alta rápida de Docentes: Coordinador (Super Admin ya lo cubre desde Usuarios) */}
+      <Route path="/docentes" element={<ProtectedRoute roles={['SUPER_ADMIN', 'COORDINADOR']}><DocentesPage /></ProtectedRoute>} />
 
       {/* Fase 5 */}
       <Route path="/cursos" element={<ProtectedRoute roles={STAFF_ROLES}><CoursesPage /></ProtectedRoute>} />

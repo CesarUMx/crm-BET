@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { prisma } from '../../config/prisma'
 import { AppError } from '../../middlewares/error.middleware'
 import { auditService } from '../audit/audit.service'
-import type { CreateUserInput, UpdateUserInput } from 'shared'
+import type { CreateUserInput, UpdateUserInput, CreateDocenteInput } from 'shared'
 
 const listQuerySchema = z.object({
   search: z.string().optional(),
@@ -162,6 +162,62 @@ export const userService = {
       where: { id },
       data: { isActive: false, tokenVersion: { increment: 1 } },
     })
+
+    await auditService.log({ actorId, action: 'USER_DELETE', entity: 'User', entityId: id, ip })
+  },
+
+  // ─── Alta rápida de Docentes (Coordinador y Super Admin) ──────────────────
+  // Scope reducido a prueba de escalada de privilegios: solo lista/crea/desactiva rol DOCENTE
+
+  async listDocentes(rawQuery: unknown) {
+    const { search, page, pageSize } = listQuerySchema.parse(rawQuery)
+
+    const where = {
+      role: 'DOCENTE' as const,
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' as const } },
+              { email: { contains: search, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+    }
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
+        orderBy: { name: 'asc' },
+      }),
+      prisma.user.count({ where }),
+    ])
+
+    return { data: users, meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } }
+  },
+
+  async createDocente(data: CreateDocenteInput, actorId: string, ip?: string) {
+    const existing = await prisma.user.findUnique({ where: { email: data.email } })
+    if (existing) throw new AppError(409, 'EMAIL_TAKEN', 'El email ya está en uso')
+
+    const user = await prisma.user.create({
+      data: { email: data.email, name: data.name, role: 'DOCENTE', password: null, mustChangePassword: false },
+      select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
+    })
+
+    await auditService.log({ actorId, action: 'USER_CREATE', entity: 'User', entityId: user.id, ip, meta: { role: 'DOCENTE' } })
+
+    return user
+  },
+
+  async deactivateDocente(id: string, actorId: string, ip?: string) {
+    const user = await prisma.user.findUnique({ where: { id } })
+    // 404 también si no es Docente: evita que Coordinador descubra/afecte cuentas de otros roles
+    if (!user || user.role !== 'DOCENTE') throw new AppError(404, 'NOT_FOUND', 'Docente no encontrado')
+
+    await prisma.user.update({ where: { id }, data: { isActive: false, tokenVersion: { increment: 1 } } })
 
     await auditService.log({ actorId, action: 'USER_DELETE', entity: 'User', entityId: id, ip })
   },

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router'
-import { LayoutDashboard, Users, BookOpen, ShieldCheck, GraduationCap } from 'lucide-react'
+import { LayoutDashboard, Users, BookOpen, ShieldCheck, GraduationCap, UserCog } from 'lucide-react'
 import { useAuthStore } from '../../lib/auth.store'
 
 const navItems = [
@@ -53,6 +53,26 @@ export function Sidebar() {
               >
                 <ShieldCheck className="size-4" />
                 Usuarios
+              </NavLink>
+            </li>
+          )}
+
+          {/* Coordinador no gestiona usuarios en general, solo da de alta Docentes */}
+          {user?.role === 'COORDINADOR' && (
+            <li>
+              <NavLink
+                to="/docentes"
+                className={({ isActive }) =>
+                  [
+                    'flex items-center gap-3 rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-[#E9511D] text-white shadow-sm shadow-[#E9511D]/30'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--hover-surface)] hover:text-[var(--text-primary)]',
+                  ].join(' ')
+                }
+              >
+                <UserCog className="size-4" />
+                Docentes
               </NavLink>
             </li>
           )}

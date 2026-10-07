@@ -30,6 +30,13 @@ export const resetPasswordSchema = z.object({
   password: passwordSchema,
 })
 
+// Alta rápida de Docente (usada por Coordinador): rol fijo, sin contraseña (login con Google)
+export const createDocenteSchema = z.object({
+  email: z.string().email('Email inválido'),
+  name: z.string().min(1, 'El nombre es requerido'),
+})
+
 export type CreateUserInput = z.infer<typeof createUserSchema>
 export type UpdateUserInput = z.infer<typeof updateUserSchema>
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>
+export type CreateDocenteInput = z.infer<typeof createDocenteSchema>
